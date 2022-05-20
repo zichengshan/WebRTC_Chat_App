@@ -1,17 +1,15 @@
 import React, {createContext, useState, useRef, useEffect} from 'react'
 import {io} from 'socket.io-client'
 import Peer from 'simple-peer'
-import {text} from "express";
-import {signal} from "nodemon/lib/config/defaults";
 
 const SocketContext = createContext()
 
-const socket = io('http://localhost:4000')
+const socket = io('http://localhost:3000')
 
 const ContextProvider = ({children}) => {
-    const [stream, setStream] = useState(null)
+    const [stream, setStream] = useState()
     const [me, setMe] = useState('')
-    const [call, setCall] = useState(null)
+    const [call, setCall] = useState({})
     const [callAccepted, setCallAccepted] = useState(false)
     const [callEnded, setCallEnded] = useState(false)
     const [name, setName] = useState('')
@@ -27,8 +25,9 @@ const ContextProvider = ({children}) => {
 
                 myVideo.current.srcObject = currentStream
             })
+
         socket.on('me', (id) => setMe(id))
-        socket.on('calluser', ({from, name: callerName, signal}) => {
+        socket.on('callUser', ({from, name: callerName, signal}) => {
             setCall({isReceivedCall: true, from, name: callerName, signal})
         })
     }, [])
@@ -39,7 +38,7 @@ const ContextProvider = ({children}) => {
         const peer = new Peer({initiator: false, trickle: false, stream})
 
         peer.on('signal', (data) => {
-            socket.emit('answercall', {signal: data, to: call.from})
+            socket.emit('answerCall', {signal: data, to: call.from})
         })
 
         peer.on('stream', (currentStream) => {
@@ -55,20 +54,18 @@ const ContextProvider = ({children}) => {
         const peer = new Peer({initiator: true, trickle: false, stream})
 
         peer.on('signal', (data) => {
-            socket.emit('calluser', {userToCall: id, singalData: data, from: me, name})
+            socket.emit('callUser', {userToCall: id, signalData: data, from: me, name})
         })
 
         peer.on('stream', (currentStream) => {
             userVideo.current.srcObject = currentStream
         })
 
-        socket.on('callaccepted'), (singal) => {
+        socket.on('callAccepted', (signal) => {
             setCallAccepted(true)
             peer.signal(signal)
-        }
-
+        })
         connectionRef.current = peer
-
     }
 
     const leaveCall = () => {
